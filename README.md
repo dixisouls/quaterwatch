@@ -125,4 +125,4 @@ Key tables:
 
 ## Architecture diagram
 
-An interactive system architecture diagram is published at: **[your-username.github.io/quarterwatch](https://dixisouls.github.io/quarterwatch)**
+An interactive system architecture diagram is published here: **[Architecture](https://dixisouls.github.io/quarterwatch)**
