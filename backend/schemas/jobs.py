@@ -1,4 +1,4 @@
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, Field
 from typing import Any
 import uuid
 from datetime import datetime
@@ -37,7 +37,7 @@ class JobCreate(BaseModel):
 
 
 class JobStatusResponse(BaseModel):
-    job_id: uuid.UUID
+    job_id: uuid.UUID = Field(alias="id")
     status: JobStatus
     ticker: str
     quarter: str
@@ -46,7 +46,7 @@ class JobStatusResponse(BaseModel):
     segmentation_notice: str | None = None
     created_at: datetime
 
-    model_config = {"from_attributes": True}
+    model_config = {"from_attributes": True, "populate_by_name": True}
 
 
 class TranscriptUpload(BaseModel):
@@ -115,7 +115,7 @@ class PriceDataOut(BaseModel):
 
 
 class JobResults(BaseModel):
-    job_id: uuid.UUID
+    job_id: uuid.UUID = Field(alias="id")
     ticker: str
     quarter: str
     year: int
