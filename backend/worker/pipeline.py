@@ -5,6 +5,7 @@ import asyncio
 from backend.database import AsyncSessionLocal
 from backend.models.models import JobStatus, Segment, SentimentResult, SentimentStatus
 from backend.services.job_service import get_job_by_id, update_job_status
+from backend.services.transcript_service import fetch_transcript
 
 logger = logging.getLogger("worker.pipeline")
 
@@ -26,8 +27,19 @@ async def run_pipeline(job_id: uuid.UUID) -> None:
             logger.info(f"[pipeline] Job {job_id} — status: processing")
 
             # Stage 1: Transcript fetch (stub)
-            logger.info(f"[pipeline] Job {job_id} — stage: transcript fetch (stub)")
-            await asyncio.sleep(1)
+            logger.info(f"[pipeline] Job {job_id} — stage: transcript fetch")
+            
+            transcript_text = await fetch_transcript(job.ticker, job.quarter, job.year)
+
+            if transcript_text is None:
+                await update_job_status(db, job_id, JobStatus.awaiting_upload)
+                await db.commit()
+                logger.info(f"[pipeline] Job {job_id} — transcript not found, awaiting upload")
+                return
+            
+            job.transcript_gcs_path = f"local:{job_id}"
+            await db.flush()
+            await db.commit()
 
             # Stage 2: Segmentation (stub)
             logger.info(f"[pipeline] Job {job_id} — stage: segmentation (stub)")
