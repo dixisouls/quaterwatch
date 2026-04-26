@@ -33,7 +33,7 @@ export function JobForm() {
     setSubmitting(true);
     try {
       const job = await submitJob(clean, quarter, year);
-      setActiveJobId(job.job_id);
+      setActiveJobId(job.id);
     } catch (err) {
       setError(getApiError(err));
     } finally {

@@ -10,7 +10,7 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: quarterwatch
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -21,18 +21,16 @@ services:
 
   # ── Cloud Tasks Emulator ────────────────────────────────────────────────────
   tasks:
-    image: ghcr.io/aertje/cloud-tasks-emulator:latest
-    restart: unless-stopped
-    ports:
-      - "8123:8123"
-    environment:
-      APP_PORT: 8123
-    command: >
-      -host 0.0.0.0
-      -port 8123
-      -queue "projects/local-project/locations/us-central1/queues/quarterwatch-jobs"
-      -target-host worker
-      -target-port 8001
+      image: ghcr.io/aertje/cloud-tasks-emulator:latest
+      restart: unless-stopped
+      ports:
+        - "8123:8123"
+      command: [
+        "-host", "0.0.0.0",
+        "-port", "8123",
+        "-queue", "projects/local-project/locations/us-central1/queues/quarterwatch-jobs",
+        
+      ]
 
   # ── Backend API ─────────────────────────────────────────────────────────────
   api:
