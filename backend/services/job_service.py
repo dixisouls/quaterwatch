@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
-from backend.models.models import Job, JobStatus
+from backend.models.models import Job, JobStatus, Segment, SentimentResult, ConfidenceResult, Entity, Summary, PriceData
 from backend.schemas.jobs import JobCreate
 
 
@@ -45,10 +45,10 @@ async def get_job_with_results(db: AsyncSession, job_id: uuid.UUID) -> Job | Non
         select(Job)
         .where(Job.id == job_id)
         .options(
-            selectinload(Job.segments).selectinload("sentiment"),
-            selectinload(Job.segments).selectinload("confidence"),
-            selectinload(Job.segments).selectinload("entities"),
-            selectinload(Job.segments).selectinload("summary"),
+            selectinload(Job.segments).selectinload(Segment.sentiment),
+            selectinload(Job.segments).selectinload(Segment.confidence),
+            selectinload(Job.segments).selectinload(Segment.entities),
+            selectinload(Job.segments).selectinload(Segment.summary),
             selectinload(Job.price_data),
         )
     )
