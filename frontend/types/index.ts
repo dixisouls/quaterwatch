@@ -26,7 +26,7 @@ export type JobStatus =
 export type Quarter = "Q1" | "Q2" | "Q3" | "Q4";
 
 export interface JobStatusResponse {
-  job_id: string;
+  id: string;
   status: JobStatus;
   ticker: string;
   quarter: Quarter;
