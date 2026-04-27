@@ -111,15 +111,21 @@ async def _call_gemini(text: str) -> list[dict]:
     )
 
     prompt = (
-    "You are analyzing a segment of an earnings call transcript. "
-    "Extract financial-specific named entities that are important to investors. "
-    "Focus on: product lines, business segments, acquisitions, competitors, "
-    "financial metrics (revenue, margin, EPS, guidance figures), "
-    "geographic markets, and key initiatives mentioned by name. "
-    "For entity_type use one of: PRODUCT, SEGMENT, METRIC, COMPETITOR, "
-    "ACQUISITION, MARKET, INITIATIVE, PERSON, ORGANIZATION. "
-    "Only include entities explicitly named in the text.\n\n"
-    f"Segment:\n{text}"
+        "You are extracting named entities from an earnings call transcript segment. "
+        "Only extract entities that are materially significant to an investor analyzing this call. "
+        "Rules:\n"
+        "- PERSON: executives, analysts, named speakers only — not job titles alone\n"
+        "- ORGANIZATION: companies, institutions, named partners/customers — not internal teams, departments, or sports teams\n"
+        "- PRODUCT: named product lines or services — not generic category names\n"
+        "- SEGMENT: named business units — not vague groupings like 'our consumer business'\n"
+        "- METRIC: specific figures with context (e.g. '42% gross margin', '$4.2B guidance') — not bare numbers\n"
+        "- COMPETITOR: explicitly named competing companies only\n"
+        "- ACQUISITION: named deals only\n"
+        "- MARKET: specific named geographies or verticals — not 'the market' or 'our customers'\n"
+        "- INITIATIVE: named programs or strategies — not vague goals\n"
+        "Prefer fewer high-confidence entities over an exhaustive noisy list. "
+        "Only include entities explicitly named in the text.\n\n"
+        f"Segment:\n{text}"
     )
 
     response = await client.aio.models.generate_content(
@@ -166,31 +172,36 @@ async def extract_entities_for_segment(
     If both fail, return empty list and continue.
     Returns a list of unsaved Entity ORM objects.
     """
-    nl_entities = []
-    gemini_entities = []
-    
-    try:
-        nl_entities = await _call_nl_api_entities(segment.text)
+    nl_result, gemini_result = await asyncio.gather(
+        _call_nl_api_entities(segment.text),
+        _call_gemini(segment.text),
+        return_exceptions=True,
+    )
+
+    if isinstance(nl_result, Exception):
+        logger.error(
+            f"[entity] NL API failed for segment {segment.id} | {segment.name} : {nl_result} "
+            f"Skipping NL API pass"
+        )
+        nl_entities = []
+    else:
+        nl_entities = nl_result
         logger.info(
             f"[entity] NL API found {len(nl_entities)} entities "
             f"for segment {segment.id} | {segment.name}"
         )
-    except Exception as e:
+
+    if isinstance(gemini_result, Exception):
         logger.error(
-            f"[entity] NL API failed for segment {segment.id} | {segment.name} : {e}"
-            f"Skipping NL API pass"
+            f"[entity] Gemini failed for segment {segment.id} | {segment.name} : {gemini_result} "
+            f"Skipping Gemini pass"
         )
-    
-    try:
-        gemini_entities = await _call_gemini(segment.text)
+        gemini_entities = []
+    else:
+        gemini_entities = gemini_result
         logger.info(
             f"[entity] Gemini found {len(gemini_entities)} entities "
             f"for segment {segment.id} | {segment.name}"
-        )
-    except Exception as e:
-        logger.error(
-            f"[entity] Gemini failed for segment {segment.id} | {segment.name} : {e}"
-            f"Skipping Gemini pass"
         )
     # Merge and deduplicate by name
     seen = set()
