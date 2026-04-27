@@ -2,6 +2,58 @@ import { useState } from "react";
 import { cn, sentimentLabel, sentimentColor, confidenceLabel } from "@/lib/utils";
 import type { Segment } from "@/types";
 
+function highlightText(
+  text: string,
+  keyPhrases: string[],
+  hedgingPhrases: string[]
+): React.ReactNode[] {
+  type Range = { start: number; end: number; type: "assertive" | "hedging" };
+  const ranges: Range[] = [];
+  const lower = text.toLowerCase();
+
+  const collect = (phrases: string[], type: Range["type"]) => {
+    for (const phrase of phrases) {
+      const lp = phrase.toLowerCase();
+      let idx = lower.indexOf(lp);
+      while (idx !== -1) {
+        ranges.push({ start: idx, end: idx + phrase.length, type });
+        idx = lower.indexOf(lp, idx + 1);
+      }
+    }
+  };
+
+  collect(keyPhrases, "assertive");
+  collect(hedgingPhrases, "hedging");
+  ranges.sort((a, b) => a.start - b.start);
+
+  const merged: Range[] = [];
+  for (const r of ranges) {
+    if (merged.length === 0 || r.start >= merged[merged.length - 1].end) {
+      merged.push(r);
+    }
+  }
+
+  const nodes: React.ReactNode[] = [];
+  let cursor = 0;
+  for (const { start, end, type } of merged) {
+    if (cursor < start) nodes.push(text.slice(cursor, start));
+    nodes.push(
+      <mark
+        key={start}
+        className={cn(
+          "rounded-sm px-0.5",
+          type === "assertive" ? "bg-green-100 text-green-900" : "bg-amber-100 text-amber-900"
+        )}
+      >
+        {text.slice(start, end)}
+      </mark>
+    );
+    cursor = end;
+  }
+  if (cursor < text.length) nodes.push(text.slice(cursor));
+  return nodes;
+}
+
 interface SegmentCardProps {
   segment: Segment;
   index: number;
@@ -62,7 +114,8 @@ export function SegmentCard({ segment, index }: SegmentCardProps) {
               {sentimentLabel(sentiment.score)} sentiment
               {sentiment.score !== null && (
                 <span className="opacity-60 ml-0.5">
-                  ({sentiment.score > 0 ? "+" : ""}{sentiment.score?.toFixed(2)})
+                  ({sentiment.score > 0 ? "+" : ""}{sentiment.score?.toFixed(2)}
+                  {sentiment.magnitude !== null && ` · mag ${sentiment.magnitude.toFixed(1)}`})
                 </span>
               )}
             </span>
@@ -107,6 +160,32 @@ export function SegmentCard({ segment, index }: SegmentCardProps) {
             <span className="badge badge-warning">Extractive summary</span>
           )}
         </div>
+
+        {/* Confidence phrases */}
+        {confidence && ((confidence.key_phrases?.length ?? 0) > 0 || (confidence.hedging_phrases?.length ?? 0) > 0) && (
+          <div className="flex flex-wrap items-start gap-x-4 gap-y-2 mt-3">
+            {(confidence.key_phrases?.length ?? 0) > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-xs text-stone-400 mr-0.5">assertive</span>
+                {confidence.key_phrases!.map((phrase, i) => (
+                  <span key={i} className="text-xs bg-green-50 text-green-700 border border-green-100 rounded-md px-2 py-0.5">
+                    {phrase}
+                  </span>
+                ))}
+              </div>
+            )}
+            {(confidence.hedging_phrases?.length ?? 0) > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-xs text-stone-400 mr-0.5">hedging</span>
+                {confidence.hedging_phrases!.map((phrase, i) => (
+                  <span key={i} className="text-xs bg-amber-50 text-amber-700 border border-amber-100 rounded-md px-2 py-0.5">
+                    {phrase}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Summary */}
@@ -127,9 +206,19 @@ export function SegmentCard({ segment, index }: SegmentCardProps) {
               <svg className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M12 3a9 9 0 110 18A9 9 0 0112 3z" />
               </svg>
-              <p className="text-xs text-amber-700">
-                Some claims in this summary could not be fully verified.
-              </p>
+              <div>
+                <p className="text-xs text-amber-700">
+                  Some claims in this summary could not be fully verified.
+                </p>
+                <ul className="mt-2 space-y-0.5">
+                  {summary.flagged_claims.map((claim, i) => (
+                    <li key={i} className="flex items-start gap-1.5 text-xs text-amber-800">
+                      <span className="mt-1.5 w-1 h-1 rounded-full bg-amber-500 flex-shrink-0" />
+                      {claim}
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </div>
           )}
           <p className="text-sm text-stone-700 leading-relaxed">{summary.text}</p>
@@ -148,26 +237,42 @@ export function SegmentCard({ segment, index }: SegmentCardProps) {
       ) : null}
 
       {/* Entities */}
-      {entities.length > 0 && (
-        <div className="px-6 py-4 border-b border-stone-50">
-          <p className="text-xs font-medium text-stone-400 uppercase tracking-wider mb-3">
-            Entities
-          </p>
-          <div className="flex flex-wrap gap-1.5">
-            {entities.map((entity, i) => (
-              <span
-                key={i}
-                className="inline-flex items-center gap-1.5 text-xs bg-stone-50 border border-stone-100 text-stone-700 rounded-lg px-2.5 py-1"
-              >
-                <span className="font-medium">{entity.name}</span>
-                {entity.entity_type && (
-                  <span className="text-stone-400">{entity.entity_type}</span>
-                )}
-              </span>
-            ))}
+      {entities.length > 0 && (() => {
+        const grouped = entities.reduce<Record<string, typeof entities>>((acc, e) => {
+          const key = e.entity_type ?? "Other";
+          (acc[key] ??= []).push(e);
+          return acc;
+        }, {});
+        const sortedGroups = Object.entries(grouped).sort((a, b) => b[1].length - a[1].length);
+        const multipleGroups = sortedGroups.length > 1;
+
+        return (
+          <div className="px-6 py-4 border-b border-stone-50">
+            <p className="text-xs font-medium text-stone-400 uppercase tracking-wider mb-3">
+              Entities
+            </p>
+            <div className="space-y-3">
+              {sortedGroups.map(([type, group]) => (
+                <div key={type}>
+                  {multipleGroups && (
+                    <p className="text-xs text-stone-400 mb-1.5">{type}</p>
+                  )}
+                  <div className="flex flex-wrap gap-1.5">
+                    {group.map((entity, i) => (
+                      <span
+                        key={i}
+                        className="inline-flex items-center text-xs bg-stone-50 border border-stone-100 text-stone-700 rounded-lg px-2.5 py-1"
+                      >
+                        <span className="font-medium">{entity.name}</span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Expand source text */}
       <div className="px-6 py-3">
@@ -189,7 +294,11 @@ export function SegmentCard({ segment, index }: SegmentCardProps) {
         {expanded && (
           <div className="mt-3 p-4 bg-stone-25 border border-stone-100 rounded-xl">
             <p className="text-xs font-mono text-stone-600 leading-relaxed whitespace-pre-wrap">
-              {segment.text}
+              {highlightText(
+                segment.text,
+                confidence?.key_phrases ?? [],
+                confidence?.hedging_phrases ?? []
+              )}
             </p>
           </div>
         )}
