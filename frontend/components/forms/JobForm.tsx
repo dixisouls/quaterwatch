@@ -101,46 +101,62 @@ export function JobForm() {
 
   // Show processing status
   if (activeJobId && status && status !== "failed") {
+    const STAGES = [
+      "Fetching transcript",
+      "Segmenting transcript",
+      "Scoring sentiment",
+      "Scoring confidence",
+      "Extracting entities",
+      "Generating summaries",
+      "Verifying faithfulness",
+    ];
+
+    const currentStage = jobData?.pipeline_stage ?? 0;
+
     return (
       <div className="card p-8 animate-in">
-        <div className="flex items-center gap-4 mb-6">
-          {isPolling && <Spinner size="md" />}
-          <div>
-            <p className="font-semibold text-stone-900">
-              {status === "pending" && "Queuing analysis..."}
-              {status === "processing" && "Pipeline running..."}
-            </p>
-            <p className="text-sm text-stone-500 mt-0.5">
-              Analysing{" "}
-              <span className="font-mono font-medium text-stone-700">
-                {jobData?.ticker} {jobData?.quarter} {jobData?.year}
-              </span>
-            </p>
-          </div>
+        <div className="mb-6">
+          <p className="font-semibold text-stone-900">
+            {status === "pending" && "Queuing analysis..."}
+            {status === "processing" && "Pipeline running..."}
+          </p>
+          <p className="text-sm text-stone-500 mt-0.5">
+            Analysing{" "}
+            <span className="font-mono font-medium text-stone-700">
+              {jobData?.ticker} {jobData?.quarter} {jobData?.year}
+            </span>
+          </p>
         </div>
 
         <div className="space-y-2">
-          {[
-            "Fetching transcript",
-            "Segmenting transcript",
-            "Scoring sentiment",
-            "Scoring confidence",
-            "Extracting entities",
-            "Generating summaries",
-            "Verifying faithfulness",
-          ].map((stage, i) => (
-            <div key={stage} className="flex items-center gap-3">
-              <div
-                className={`w-1.5 h-1.5 rounded-full transition-colors duration-500 ${
-                  status === "processing"
-                    ? "bg-amber-400 animate-pulse-soft"
-                    : "bg-stone-200"
-                }`}
-                style={{ animationDelay: `${i * 0.15}s` }}
-              />
-              <span className="text-sm text-stone-500">{stage}</span>
-            </div>
-          ))}
+          {STAGES.map((stage, i) => {
+            const stageNumber = i + 1;
+            const isDone = currentStage > stageNumber;
+            const isActive = currentStage === stageNumber;
+
+            return (
+              <div key={stage} className="flex items-center gap-3">
+                {isDone ? (
+                  <svg className="w-3.5 h-3.5 text-green-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                  </svg>
+                ) : isActive ? (
+                  <Spinner size="sm" className="flex-shrink-0" />
+                ) : (
+                  <div className="w-1.5 h-1.5 rounded-full flex-shrink-0 bg-stone-200" />
+                )}
+                <span className={`text-sm transition-colors duration-300 ${
+                  isDone
+                    ? "text-stone-400"
+                    : isActive
+                    ? "text-stone-800 font-medium"
+                    : "text-stone-400"
+                }`}>
+                  {stage}
+                </span>
+              </div>
+            );
+          })}
         </div>
       </div>
     );

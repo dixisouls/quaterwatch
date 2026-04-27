@@ -33,6 +33,7 @@ export interface JobStatusResponse {
   year: number;
   error_message: string | null;
   segmentation_notice: string | null;
+  pipeline_stage: number | null;
   created_at: string;
 }
 
