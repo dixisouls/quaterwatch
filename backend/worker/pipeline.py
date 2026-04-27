@@ -10,6 +10,7 @@ from backend.services.segmentation_service import segment_transcript
 from backend.services.sentiment_service import run_sentiment_for_job
 from backend.services.confidence_service import score_confidence_for_job
 from backend.services.entity_service import extract_entities_for_job
+from backend.services.summary_service import generate_summaries_for_job
 
 logger = logging.getLogger("worker.pipeline")
 
@@ -91,9 +92,13 @@ async def run_pipeline(job_id: uuid.UUID) -> None:
             await db.commit()
             logger.info(f"[entity] Stored {len(entities)} entities for job {job_id}")
 
-            # Stage 6: Summarization (stub)
+            # Stage 6: Summarization 
             logger.info(f"[pipeline] Job {job_id} — stage: summarization (stub)")
-            await asyncio.sleep(1)
+            summaries = await generate_summaries_for_job(db, job_id)
+            for summary in summaries:
+                db.add(summary)
+            await db.commit()
+            logger.info(f"[summary] Stored {len(summaries)} summaries for job {job_id}")
 
             # Stage 7: Faithfulness check (stub)
             logger.info(f"[pipeline] Job {job_id} — stage: faithfulness check (stub)")
