@@ -44,6 +44,7 @@ class JobStatusResponse(BaseModel):
     year: int
     error_message: str | None = None
     segmentation_notice: str | None = None
+    pipeline_stage: int | None = None
     created_at: datetime
 
     model_config = {"from_attributes": True, "populate_by_name": True}
