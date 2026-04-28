@@ -96,6 +96,7 @@ override.tf.json
 .terraformrc
 terraform.rc
 
+terraform_outputs.txt
 
 # ── Docker ───────────────────────────────
 .dockerignore
@@ -135,3 +136,6 @@ logs/
 # ── Local dev data ───────────────────────
 postgres-data/
 transcript-store/
+
+# --- Vercel ---
+.vercel/
