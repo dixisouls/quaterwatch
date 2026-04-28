@@ -1,7 +1,6 @@
 import logging
 from google.cloud import language_v1
 from google.api_core.exceptions import GoogleAPIError
-from requests import request
 from tenacity import (
     retry,
     stop_after_attempt,
@@ -10,7 +9,6 @@ from tenacity import (
     before_sleep_log,
 )
 from backend.models.models import SentimentResult, SentimentStatus, Segment
-from backend.database import AsyncSessionLocal
 import asyncio
 import uuid
 from sqlalchemy.ext.asyncio import AsyncSession

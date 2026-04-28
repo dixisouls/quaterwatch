@@ -4,9 +4,7 @@ import logging
 from fastapi import FastAPI, Request, HTTPException
 from contextlib import asynccontextmanager
 
-from backend.database import AsyncSessionLocal, engine
-from backend.models.models import Job, JobStatus
-from backend.services.job_service import get_job_by_id, update_job_status
+from backend.database import engine
 from backend.worker.pipeline import run_pipeline
 
 logging.basicConfig(level=logging.INFO)

@@ -1,6 +1,5 @@
 import uuid
 import logging
-import asyncio
 
 from backend.database import AsyncSessionLocal
 from backend.models.models import JobStatus, Segment, SentimentResult, SentimentStatus

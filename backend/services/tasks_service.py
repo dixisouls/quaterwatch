@@ -19,8 +19,6 @@ async def enqueue_job(job_id: uuid.UUID) -> bool:
 async def _enqueue_via_emulator(job_id: uuid.UUID) -> bool:
     import grpc
     from google.cloud import tasks_v2
-    from google.api_core.client_options import ClientOptions
-    from google.auth.credentials import AnonymousCredentials
 
     emulator_host = settings.cloud_tasks_emulator_host
 

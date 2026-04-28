@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
-from backend.models.models import Job, JobStatus, Segment, SentimentResult, ConfidenceResult, Entity, Summary, PriceData
+from backend.models.models import Job, JobStatus, Segment
 from backend.schemas.jobs import JobCreate
 
 

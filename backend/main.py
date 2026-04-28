@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
 from backend.config import get_settings
-from backend.database import engine, Base
+from backend.database import engine
 from backend.api.routes import auth, jobs
 
 settings = get_settings()
