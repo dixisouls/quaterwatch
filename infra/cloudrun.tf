@@ -35,12 +35,6 @@ resource "google_project_iam_member" "cloudrun_vertexai" {
   member  = "serviceAccount:${google_service_account.cloudrun.email}"
 }
 
-resource "google_project_iam_member" "cloudrun_naturallanguage" {
-  project = local.project_id
-  role    = "roles/cloudlanguage.user"
-  member  = "serviceAccount:${google_service_account.cloudrun.email}"
-}
-
 # ── API Service ────────────────────────────────────────────────────────────
 
 resource "google_cloud_run_v2_service" "api" {
@@ -56,7 +50,7 @@ resource "google_cloud_run_v2_service" "api" {
     }
 
     containers {
-      image = "${local.region}-docker.pkg.dev/${local.project_id}/quarterwatch/api:latest"
+      image = "gcr.io/cloudrun/hello:latest"
 
       resources {
         limits = {
@@ -174,7 +168,7 @@ resource "google_cloud_run_v2_service" "worker" {
     }
 
     containers {
-      image = "${local.region}-docker.pkg.dev/${local.project_id}/quarterwatch/worker:latest"
+      image = "gcr.io/cloudrun/hello:latest"
 
       resources {
         limits = {
