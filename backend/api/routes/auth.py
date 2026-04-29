@@ -42,7 +42,7 @@ async def login(data: UserLogin, db: AsyncSession = Depends(get_db)):
 
 @router.post("/google", response_model=Token)
 async def google_auth(data: GoogleAuthRequest, request: Request, db: AsyncSession = Depends(get_db)):
-    redirect_uri = f"{settings.frontend_url}/auth/callback"
+    redirect_uri = f"{settings.frontend_url}/auth/login"
     try:
         google_info = await auth_service.exchange_google_code(data.code, redirect_uri)
     except Exception:
