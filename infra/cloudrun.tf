@@ -87,7 +87,7 @@ resource "google_cloud_run_v2_service" "api" {
 
       env {
         name  = "WORKER_URL"
-        value = "https://quarterwatch-worker-${data.google_project.project.number}-uc.a.run.app"
+        value = google_cloud_run_v2_service.worker.uri
       }
 
       env {
@@ -142,6 +142,7 @@ resource "google_cloud_run_v2_service" "api" {
   depends_on = [
     google_project_service.cloudrun,
     google_sql_database_instance.quarterwatch,
+    google_cloud_run_v2_service.worker,
   ]
 }
 

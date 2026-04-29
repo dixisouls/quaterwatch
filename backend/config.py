@@ -35,6 +35,7 @@ class Settings(BaseSettings):
 
     # CORS
     frontend_url: str = "http://localhost:3000"
+    worker_url: str = "http://localhost:8001"
 
     # Environment
     environment: str = "development"

@@ -2,9 +2,10 @@ import uuid
 import logging
 
 from backend.database import AsyncSessionLocal
-from backend.models.models import JobStatus, Segment, SentimentResult, SentimentStatus
+from backend.models.models import JobStatus, Segment
 from backend.services.job_service import get_job_by_id, update_job_status
 from backend.services.transcript_service import fetch_transcript
+from backend.services.storage_service import upload_transcript, download_transcript
 from backend.services.segmentation_service import segment_transcript
 from backend.services.sentiment_service import run_sentiment_for_job
 from backend.services.confidence_service import score_confidence_for_job
@@ -16,10 +17,6 @@ logger = logging.getLogger("worker.pipeline")
 
 
 async def run_pipeline(job_id: uuid.UUID) -> None:
-    """
-    Phase 1 stub pipeline. Logs each stage and writes status updates.
-    No real AI or API calls yet.
-    """
     async with AsyncSessionLocal() as db:
         try:
             job = await get_job_by_id(db, job_id)
@@ -40,7 +37,17 @@ async def run_pipeline(job_id: uuid.UUID) -> None:
             await db.commit()
             logger.info(f"[pipeline] Job {job_id} — stage: transcript fetch")
 
-            transcript_text = await fetch_transcript(job.ticker, job.quarter, job.year)
+            transcript_text = None
+
+            # If a GCS path already exists from a manual upload, download it from there
+            if job.transcript_gcs_path and not job.transcript_gcs_path.startswith("local:"):
+                logger.info(f"[pipeline] Job {job_id} — found existing GCS path, downloading")
+                transcript_text = await download_transcript(job.transcript_gcs_path)
+                if transcript_text is None:
+                    logger.warning(f"[pipeline] Job {job_id} — failed to download transcript from GCS. Falling back to FMP")
+            
+            if transcript_text is None:
+                transcript_text = await fetch_transcript(job.ticker, job.quarter, job.year)
 
             if transcript_text is None:
                 await update_job_status(db, job_id, JobStatus.awaiting_upload)
@@ -48,9 +55,12 @@ async def run_pipeline(job_id: uuid.UUID) -> None:
                 logger.info(f"[pipeline] Job {job_id} — transcript not found, awaiting upload")
                 return
 
-            job.transcript_gcs_path = f"local:{job_id}"
-            await db.flush()
-            await db.commit()
+            # Upload to GCS if not already there
+            if not job.transcript_gcs_path or job.transcript_gcs_path.startswith("local:"):
+                gcs_path = await upload_transcript(str(job_id), transcript_text)
+                job.transcript_gcs_path = gcs_path or f"upload-failed:{job_id}"
+                await db.flush()
+                await db.commit()
 
             # Stage 2: Segmentation
             await _set_stage(2)
@@ -137,31 +147,3 @@ async def run_pipeline(job_id: uuid.UUID) -> None:
             async with AsyncSessionLocal() as err_db:
                 await update_job_status(err_db, job_id, JobStatus.failed, str(exc))
                 await err_db.commit()
-
-
-async def _create_stub_segments(db, job_id: uuid.UUID) -> None:
-    """Creates 3 stub segments so the results page has something to show."""
-    stub_segments = [
-        ("Opening Remarks", 0, "This is a stub for the opening remarks segment. Real transcript content will appear here after Phase 2."),
-        ("CFO Financial Review", 1, "This is a stub for the CFO financial review segment. Real transcript content will appear here after Phase 2."),
-        ("Q&A Session", 2, "This is a stub for the Q&A session segment. Real transcript content will appear here after Phase 2."),
-    ]
-
-    for name, order, text in stub_segments:
-        segment = Segment(
-            job_id=job_id,
-            name=name,
-            order_index=order,
-            text=text,
-            word_count=len(text.split()),
-        )
-        db.add(segment)
-        await db.flush()
-
-        sentiment = SentimentResult(
-            segment_id=segment.id,
-            status=SentimentStatus.unavailable,
-        )
-        db.add(sentiment)
-
-    await db.flush()
