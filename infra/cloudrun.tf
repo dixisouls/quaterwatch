@@ -92,12 +92,7 @@ resource "google_cloud_run_v2_service" "api" {
 
       env {
         name = "DATABASE_URL"
-        value_source {
-          secret_key_ref {
-            secret  = google_secret_manager_secret.db_password.secret_id
-            version = "latest"
-          }
-        }
+        value = "postgresql+asyncpg://postgres:${var.db_password}@/quarterwatch?host=/cloudsql/${google_sql_database_instance.quarterwatch.connection_name}"
       }
 
       env {
@@ -200,12 +195,7 @@ resource "google_cloud_run_v2_service" "worker" {
 
       env {
         name = "DATABASE_URL"
-        value_source {
-          secret_key_ref {
-            secret  = google_secret_manager_secret.db_password.secret_id
-            version = "latest"
-          }
-        }
+        value = "postgresql+asyncpg://postgres:${var.db_password}@/quarterwatch?host=/cloudsql/${google_sql_database_instance.quarterwatch.connection_name}"
       }
 
       env {
