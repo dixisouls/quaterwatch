@@ -68,9 +68,6 @@ jobs:
   deploy-frontend:
     name: Deploy frontend to Vercel
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: frontend
 
     steps:
       - name: Checkout
@@ -85,7 +82,6 @@ jobs:
 
       - name: Install Vercel CLI
         run: npm install -g vercel
-        working-directory: .
 
       - name: Pull Vercel environment
         run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
