@@ -39,13 +39,17 @@ async def run_pipeline(job_id: uuid.UUID) -> None:
 
             transcript_text = None
 
+            _SENTINEL_PREFIXES = ("local:", "upload-failed:")
+
             # If a GCS path already exists from a manual upload, download it from there
-            if job.transcript_gcs_path and not job.transcript_gcs_path.startswith("local:"):
+            if job.transcript_gcs_path and not any(
+                job.transcript_gcs_path.startswith(p) for p in _SENTINEL_PREFIXES
+            ):
                 logger.info(f"[pipeline] Job {job_id} — found existing GCS path, downloading")
                 transcript_text = await download_transcript(job.transcript_gcs_path)
                 if transcript_text is None:
                     logger.warning(f"[pipeline] Job {job_id} — failed to download transcript from GCS. Falling back to FMP")
-            
+
             if transcript_text is None:
                 transcript_text = await fetch_transcript(job.ticker, job.quarter, job.year)
 
@@ -56,9 +60,16 @@ async def run_pipeline(job_id: uuid.UUID) -> None:
                 return
 
             # Upload to GCS if not already there
-            if not job.transcript_gcs_path or job.transcript_gcs_path.startswith("local:"):
+            if not job.transcript_gcs_path or any(
+                job.transcript_gcs_path.startswith(p) for p in _SENTINEL_PREFIXES
+            ):
                 gcs_path = await upload_transcript(str(job_id), transcript_text)
-                job.transcript_gcs_path = gcs_path or f"upload-failed:{job_id}"
+                if not gcs_path:
+                    await update_job_status(db, job_id, JobStatus.awaiting_upload)
+                    await db.commit()
+                    logger.warning(f"[pipeline] Job {job_id} — GCS upload failed, awaiting upload retry")
+                    return
+                job.transcript_gcs_path = gcs_path
                 await db.flush()
                 await db.commit()
 

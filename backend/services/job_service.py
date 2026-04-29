@@ -79,7 +79,13 @@ async def set_transcript_text(
     if not job:
         return None
     gcs_path = await upload_transcript(str(job_id), text)
-    job.transcript_gcs_path = gcs_path or f"upload-failed:{job_id}"
+    if not gcs_path:
+        job.transcript_gcs_path = None
+        job.error_message = "Failed to upload transcript to storage."
+        await db.flush()
+        return None
+    job.transcript_gcs_path = gcs_path
+    job.error_message = None
     job.status = JobStatus.pending
     await db.flush()
     return job
