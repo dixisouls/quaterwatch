@@ -1,19 +1,31 @@
-FROM python:3.12.8-slim
+# ── Build stage ────────────────────────────────────────────────────────────
+FROM python:3.12.8-slim AS builder
 
-WORKDIR /app
-
-# System deps
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY backend/requirements.txt .
+RUN python -m venv /venv && \
+    /venv/bin/pip install --no-cache-dir -r requirements.txt
+
+# ── Runtime stage ──────────────────────────────────────────────────────────
+FROM python:3.12.8-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq-dev \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-COPY backend/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY --from=builder /venv /venv
 
-COPY . .
+WORKDIR /app
+COPY backend/ backend/
+COPY alembic.ini .
 
-EXPOSE 8000
+ENV PATH="/venv/bin:$PATH"
 
-CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+EXPOSE 8080
+
+CMD ["sh", "-c", "uvicorn backend.main:app --host 0.0.0.0 --port ${PORT:-8080}"]
