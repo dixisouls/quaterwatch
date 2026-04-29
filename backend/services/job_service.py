@@ -5,6 +5,7 @@ from sqlalchemy.orm import selectinload
 
 from backend.models.models import Job, JobStatus, Segment
 from backend.schemas.jobs import JobCreate
+from backend.services.storage_service import upload_transcript
 
 
 async def get_existing_completed_job(
@@ -77,12 +78,11 @@ async def set_transcript_text(
     job = await get_job_by_id(db, job_id)
     if not job:
         return None
-    # In Phase 1 we store inline. In Phase 2 this writes to GCS.
-    job.transcript_gcs_path = f"inline:{job_id}"
-    job.status = JobStatus.processing
+    gcs_path = await upload_transcript(str(job_id), text)
+    job.transcript_gcs_path = gcs_path or f"upload-failed:{job_id}"
+    job.status = JobStatus.pending
     await db.flush()
     return job
-
 
 async def list_jobs_for_user(db: AsyncSession, user_id: uuid.UUID) -> list[Job]:
     result = await db.execute(

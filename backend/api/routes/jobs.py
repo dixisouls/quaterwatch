@@ -81,6 +81,17 @@ async def upload_transcript(
 
     job = await job_service.set_transcript_text(db, job_id, data.text)
     await db.commit()
+
+    # Re-enqueue so the worker picks it up and continues from the transcript
+    queued = await tasks_service.enqueue_job(job_id)
+    if not queued:
+        await job_service.update_job_status(db, job_id, JobStatus.failed, "Failed to queue job after transcript upload")
+        await db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Service temporarily unavailable, please try again in a moment.",
+        )
+
     await db.refresh(job)
     return JobStatusResponse.model_validate(job)
 
