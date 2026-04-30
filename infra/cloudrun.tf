@@ -180,6 +180,14 @@ resource "google_cloud_run_v2_service" "worker" {
       max_instance_count = 2
     }
 
+    vpc_access {
+      network_interfaces {
+        network    = "default"
+        subnetwork = "default"
+      }
+      egress = "PRIVATE_RANGES_ONLY"
+    }
+
     containers {
       image = "gcr.io/cloudrun/hello:latest"
 
