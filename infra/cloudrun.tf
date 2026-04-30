@@ -62,7 +62,7 @@ resource "google_cloud_run_v2_service" "api" {
     }
 
     containers {
-      image = "gcr.io/cloudrun/hello:latest"
+      image = "us-central1-docker.pkg.dev/${local.project_id}/quarterwatch/api:latest"
 
       resources {
         limits = {
@@ -189,14 +189,14 @@ resource "google_cloud_run_v2_service" "worker" {
     }
 
     containers {
-      image = "gcr.io/cloudrun/hello:latest"
+      image = "us-central1-docker.pkg.dev/${local.project_id}/quarterwatch/worker:latest"
 
       resources {
         limits = {
           cpu    = "1"
           memory = "1Gi"
         }
-        cpu_idle = true
+        cpu_idle = false
       }
 
       env {
